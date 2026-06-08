@@ -13,6 +13,7 @@ from api.audio import get_audio_duration_seconds, validate_audio_extension
 from api.authentication import EmailTokenObtainPairSerializer
 from api.models import TranscriptionJob
 from api.serializers import JobSerializer, RegisterSerializer
+from api.services import process_job
 
 
 class RegisterView(APIView):
@@ -73,8 +74,9 @@ class JobCreateView(APIView):
                 audio=saved_path,
                 duration_seconds=duration_seconds,
             )
+            process_job(job)
         except Exception:
-            if default_storage.exists(saved_path):
+            if "job" not in locals() and default_storage.exists(saved_path):
                 default_storage.delete(saved_path)
             raise
 
