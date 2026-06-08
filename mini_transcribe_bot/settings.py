@@ -11,7 +11,10 @@ def env_bool(name, default=False):
     return os.environ.get(name, str(default)).lower() in {"1", "true", "yes", "on"}
 
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-secret-key")
+SECRET_KEY = os.environ.get(
+    "SECRET_KEY",
+    "dev-only-secret-key-for-local-testing-only",
+)
 DEBUG = env_bool("DEBUG", True)
 ALLOWED_HOSTS = [
     host.strip()
@@ -95,4 +98,3 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 GROQ_TRANSCRIPTION_MODEL = os.environ.get("GROQ_TRANSCRIPTION_MODEL", "whisper-large-v3")
 GROQ_LLM_MODEL = os.environ.get("GROQ_LLM_MODEL", "llama-3.3-70b-versatile")
 PROVIDER_TIMEOUT_SECONDS = int(os.environ.get("PROVIDER_TIMEOUT_SECONDS", "30"))
-

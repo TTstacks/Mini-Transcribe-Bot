@@ -7,7 +7,7 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     def validate(self, attrs):
         authenticate_kwargs = {
-            "username": attrs["email"],
+            "username": attrs["email"].lower(),
             "password": attrs["password"],
         }
         self.user = authenticate(**authenticate_kwargs)
@@ -20,4 +20,3 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
             "refresh": str(refresh),
             "access": str(refresh.access_token),
         }
-
