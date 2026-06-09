@@ -11,7 +11,7 @@ HTTP API мини бота транскрипции сделанный чере�
 
 ## DEMO
 
-[Демо видео](docs/demo.mp4)
+<video src="docs/demo.mp4" width="100%" autoplay loop muted></video>
 
 ## Тек стеки
 
