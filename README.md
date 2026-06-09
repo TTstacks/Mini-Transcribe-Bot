@@ -1,83 +1,101 @@
 # Mini Transcribe Bot
 
-Mini Transcribe Bot is a small Django REST Framework service for the flow:
+HTTP API мини бота транскрипции сделанный через Django Rest Framework:
 
-1. authenticated user uploads `.mp3` or `.wav`;
-2. server checks the user’s permanent 30-minute free limit with `ffprobe`;
-3. audio is transcribed with Groq Whisper;
-4. transcript is analyzed by a Groq LLM;
-5. transcript and structured JSON report are saved per user.
+1. юзеры делают аутентификацию;
+1. аутентифицированные юзеры выкладывают аудио формата `.mp3`, `.wav`;
+2. используя `ffprobe`, извлекается длительность аудио и сервер проверяет на оствашиеся лимиты юзера;
+3. После успешной проверки, Grow Whisper делает трансрипт;
+4. Groq llm модель делает анализ транскрипта;
+5. Транскрипты, аудио, а также анализ сохраняются в сервере для каждых пользователей;
 
-## Tech Choices
+## DEMO
 
-- **Django REST Framework**: fast, familiar HTTP API stack with serializers, auth, and tests.
-- **SQLite**: enough for the assignment and zero local database setup.
+[Демо видео](demo.mp4)
+
+## Тек стеки
+
+- **Django REST Framework**: мощный и гибкий инструментарий для создания веб-API.
+- **SQLite**: база данных который не имеет лишних шагов для использования.
 - **Simple JWT**: stateless auth for API clients.
-- **Groq Whisper + Groq LLM**: one provider account/key for both transcription and analysis, free-tier friendly, and OpenAI-compatible endpoints.
+- **Groq Whisper + Groq LLM**: использовал llm модель и транскриптор с платформы Groq с помощью которой я использую только один ключ и сама платформа имеет щедрые лимиты пользования в бесплатном условии.
 
-## Setup
+## Сетап
 
-```bash
+```
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
+python manage.py makemigrations
 python manage.py migrate
 python manage.py runserver
 ```
 
-Install `ffprobe` locally before uploading audio:
+До того как запустить API, установите ffmpeg для команды ffprobe через [Официальный сайт](https://ffmpeg.org/download.html)
 
-```bash
-sudo apt install ffmpeg
-```
+Создайте файл '.env' Установите API Ключь на значение 'GROQ_API_KEY'. Вам требуется создать ключь через этот [Сайт](https://groq.com/)
 
-Set `GROQ_API_KEY` in `.env`. Never commit `.env`.
+Также можете добавить дополнительные параметры в .env, посмотрите .env.example для этого.
+
 
 ## API
 
-- `POST /auth/register` with `{ "email": "...", "password": "..." }`
-- `POST /auth/login` with `{ "email": "...", "password": "..." }`
-- `POST /jobs` with multipart field `audio`
+- `POST /auth/register` с `{ "email": "...", "password": "..." }`
+- `POST /auth/login` с `{ "email": "...", "password": "..." }`
+- `POST /jobs` с форматом multipart полей `audio`
 - `GET /jobs/<id>`
 - `GET /me/usage`
 
-Use the `access` token from `/auth/login` as:
+Используйте `access` токен от `/auth/login` как:
 
 ```http
 Authorization: Bearer <access-token>
 ```
 
-## Error Handling
+Для того чтобы получить новый 'access' токен, используйте 'refresh' токен полученный от 'auth/login' в 'auth/refresh':
 
-- Unsupported extensions, missing files, unreadable duration, and limit overages return clear `400` responses.
-- Groq 4xx/5xx, timeout, network failures, empty transcripts, and invalid JSON are converted into clean validation errors.
-- Provider calls use a timeout and one retry for timeout/5xx conditions.
-- Jobs that pass the limit check but fail during provider processing are marked `failed` with an `error_message`.
+```
+curl \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"refresh": "..."}' \
+  http://localhost:8000/auth/refresh
 
-## Tests
-
-Tests use pytest and mock external providers, so they need no internet and no Groq key:
-
-```bash
-pytest
+...
+{"access":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX3BrIjoxLCJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiY29sZF9zdHVmZiI6IuKYgyIsImV4cCI6MTIzNTY3LCJqdGkiOiJjNzE4ZTVkNjgzZWQ0NTQyYTU0NWJkM2VmMGI0ZGQ0ZSJ9.ekxRxgb9OKmHkfy-zs1Ro_xs1eMLXiR17dIDBVxeT-w"}
 ```
 
-Covered scenarios:
+## Обработка ошибок
 
-- registration and JWT login;
-- happy path with mocked transcription and LLM;
-- missing audio file;
-- exhausted 30-minute limit;
-- user isolation;
-- transcription provider failure;
-- invalid LLM JSON;
-- report structure validation.
+- Неподдерживаемые расширения, отсутствующие файлы, нечитаемая продолжительность и превышение лимита возвращают понятные ответы с статусом `400`.
+- Ошибки Groq 4xx/5xx, таймаут, сбои сети, пустые записи и недопустимый JSON преобразуются в понятный отчет.
+- Вызовы провайдера используют таймаут и одну повторную попытку для условий таймаута/5xx.
+- Задания, которые проходят проверку лимита, но завершаются с ошибкой во время обработки провайдером, помечаются как `failed` с понятными сообщениями.
+
+## Тесты
+
+Использован pytest для юнит тестов, тесты не требуют ключей и интернета.
+
+Запуск тестов:
+```
+python -m pytest
+```
+
+Проверенные сценарии:
+
+- Регистрация и логин, а также обновление access токена;
+- «Счастливый сценарий» с фиктивной транскрипцией и LLM;
+- отсутствует аудиофайл;
+- исчерпан 30-минутный лимит;
+- изоляция пользователя;
+- сбой транскриптора;
+- Неправильный JSON формат от LLM;
+- проверка структуры отчета;
 
 ## How I Worked With AI
 
-- I delegated scaffolding, endpoint structure, provider boundaries, and test-case generation to Codex.
-- I kept the product decisions small and explicit: synchronous processing, local media storage, SQLite, and a permanent per-user limit.
-- One assistant pitfall caught during implementation: retrying a multipart transcription request can reuse a file object after it has been read, so the provider client rewinds file objects before each retry.
-- Manual review focused on secrets, error messages, user isolation, and ensuring tests do not depend on real Groq calls.
-
+- Использовал Codex для задачи.
+- Перед тем как перейти сразу к разработке, Я поставил Codex в мод "планирования", где задал ему требования к задаче и прикрепил файл задачи. Для разработки я требовал от ИИ использование Django Rest Framework, pytest, Groq, Groq llm, sqlite и djangorestframework-simplejwt. А также требовал у ИИ чтобы он делал git коммиты. 
+- Я не хотел чтобы кодекс сам выбирал тек стеки, из-за которой мне бы было трудно потом делать проверку самому. Поэтому выбор типа аудентификации, фрейворка и сервера для задачи делал сам. Выбрал SQLite, потому что не требует лишних шагов для использования в отличие от других баз данных. Выбрал JWT аудентификацию потому что на это есть готовое решение djangorestframework-simplejwt. Выбрал Django Rest Framework потому что имею опыт с этим фреймворком. Выбрал Groq, Groq Whisper за их щедрые условия пользования.
+- После того как Codex завершил разработку, обнаружил, что он не добавил API для обновлении access токенов, поэтому из рук добавил endpoint на это, а также сделал юнит тест на проверку новых access токенов: совпадают ли они с предыдущим токеном.
